@@ -8,6 +8,13 @@ pipeline {
     }
 
     stages {
+
+        stage('Docker') {
+            steps {
+                sh 'docker build -t custom-play .'
+            }
+        }
+
         stage('Build') {
             agent {
                 docker {
@@ -15,6 +22,7 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
                 sh '''
                     npm ci
@@ -81,7 +89,7 @@ pipeline {
         stage('Deploy staging') {
             agent {
                 docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                    image 'custom-play'
                     reuseNode true
                 }
             }
@@ -92,9 +100,8 @@ pipeline {
 
             steps {
                 sh '''
-                    npm install netlify-cli node-jq
-                    node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
-                    CI_ENVIRONMENT_URL=$(node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json)
+                    netlify deploy --dir=build --json > deploy-output.json
+                    CI_ENVIRONMENT_URL=$(node-jq -r '.deploy_url' deploy-output.json)
                     npx playwright test --reporter=html
                 '''
             }
@@ -116,7 +123,7 @@ pipeline {
         stage('Deploy Prod') {
             agent {
                 docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                    image 'custom-play'
                     reuseNode true
                 }
             }
@@ -127,9 +134,7 @@ pipeline {
 
             steps {
                 sh '''
-                    npm install netlify-cli
-                    node_modules/.bin/netlify --version
-                    node_modules/.bin/netlify deploy --dir=build --prod
+                    netlify deploy --dir=build --prod
                     npx playwright test --reporter=html
                 '''
             }
